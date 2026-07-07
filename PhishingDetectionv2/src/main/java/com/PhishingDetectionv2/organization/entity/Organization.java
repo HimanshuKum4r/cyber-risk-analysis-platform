@@ -53,6 +53,11 @@ public class Organization {
     @Column(length = 255)
     private String website;
 
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrganizationType type;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default

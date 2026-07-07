@@ -1,6 +1,7 @@
 package com.PhishingDetectionv2.common.config;
 
 import com.PhishingDetectionv2.auth.security.CustomUserDetailsService;
+import com.PhishingDetectionv2.auth.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
