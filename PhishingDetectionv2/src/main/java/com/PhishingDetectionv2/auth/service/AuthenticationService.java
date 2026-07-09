@@ -6,7 +6,7 @@ import com.PhishingDetectionv2.auth.dto.response.RegisterResponse;
 
 public interface AuthenticationService {
 
-    RegisterResponse register(RegisterRequest request);
+    RegisterResponse registerIndividual(RegisterRequest request);
 
     JwtResponse login(LoginRequest request);
 
