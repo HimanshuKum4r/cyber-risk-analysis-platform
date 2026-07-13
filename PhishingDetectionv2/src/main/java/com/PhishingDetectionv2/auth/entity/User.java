@@ -107,12 +107,12 @@ public class User {
     @Builder.Default
     private List<RefreshToken> refreshTokens = new ArrayList<>();
 
-    @OneToMany(
-            mappedBy = "user",
-            fetch = FetchType.LAZY
-    )
-    @Builder.Default
-    private List<AuditLog> auditLogs = new ArrayList<>();
+//    @OneToMany(
+//            mappedBy = "user",
+//            fetch = FetchType.LAZY
+//    )
+//    @Builder.Default
+//    private List<AuditLog> auditLogs = new ArrayList<>();
 
 
 

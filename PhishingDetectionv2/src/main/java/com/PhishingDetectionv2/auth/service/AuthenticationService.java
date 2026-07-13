@@ -20,4 +20,5 @@ public interface AuthenticationService {
 
     void resetPassword(ResetPasswordRequest request);
 
+    RegisterResponse registerOrganization(RegisterOrganizationRequest request);
 }

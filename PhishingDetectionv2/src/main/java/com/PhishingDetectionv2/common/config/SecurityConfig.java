@@ -1,6 +1,8 @@
 package com.PhishingDetectionv2.common.config;
 
 import com.PhishingDetectionv2.auth.security.CustomUserDetailsService;
+import com.PhishingDetectionv2.auth.security.JwtAccessDeniedHandler;
+import com.PhishingDetectionv2.auth.security.JwtAuthenticationEntryPoint;
 import com.PhishingDetectionv2.auth.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -44,7 +46,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         .requestMatchers(
-                                "/auth/**",
+                                "/api/v1/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
