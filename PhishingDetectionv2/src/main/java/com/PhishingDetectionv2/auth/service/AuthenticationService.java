@@ -10,7 +10,7 @@ public interface AuthenticationService {
 
     JwtResponse login(LoginRequest request);
 
-    JwtResponse refreshToken(RefreshTokenRequest request);
+    JwtResponse refreshToken(String request);
 
     void logout(LogoutRequest request);
 
@@ -21,4 +21,8 @@ public interface AuthenticationService {
     void resetPassword(ResetPasswordRequest request);
 
     RegisterResponse registerOrganization(RegisterOrganizationRequest request);
+
+    void logoutAll();
+
+    void changePassword(ChangePasswordRequest request);
 }

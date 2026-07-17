@@ -1,8 +1,6 @@
 package com.PhishingDetectionv2.auth.controller;
 
-import com.PhishingDetectionv2.auth.dto.request.LoginRequest;
-import com.PhishingDetectionv2.auth.dto.request.RegisterOrganizationRequest;
-import com.PhishingDetectionv2.auth.dto.request.RegisterRequest;
+import com.PhishingDetectionv2.auth.dto.request.*;
 import com.PhishingDetectionv2.auth.dto.response.JwtResponse;
 import com.PhishingDetectionv2.auth.dto.response.RegisterResponse;
 import com.PhishingDetectionv2.auth.service.AuthenticationService;
@@ -55,5 +53,66 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<JwtResponse> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request
+    ) {
+
+        JwtResponse response = authenticationService.refreshToken(
+                request.getRefreshToken()
+        );
+
+        return ResponseEntity.ok(response);
+
+    }
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @Valid @RequestBody LogoutRequest request
+    ) {
+
+        authenticationService.logout(
+                request
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+    @PostMapping("/logout-all")
+    public ResponseEntity<Void> logoutAll() {
+
+        authenticationService.logoutAll();
+
+        return ResponseEntity.noContent().build();
+    }
+    @GetMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(
+            @RequestParam String token
+    ) {
+
+        authenticationService.verifyEmail(token);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+
+        authenticationService.forgotPassword(request);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+
+        authenticationService.resetPassword(request);
+
+        return ResponseEntity.noContent().build();
+    }
+
 
 }

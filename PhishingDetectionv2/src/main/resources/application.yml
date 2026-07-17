@@ -13,3 +13,4 @@ jwt:
   secret: VGhpc0lzQVN1cGVyU2VjcmV0S2V5Rm9ySldUVGhhdElzQXRMZWFzdDMyQ2hhcmFjdGVyc0xvbmc=
   access-token-expiration: 900000
   refresh-token-expiration: 604800000
+  password-reset-token-expiration: 900000

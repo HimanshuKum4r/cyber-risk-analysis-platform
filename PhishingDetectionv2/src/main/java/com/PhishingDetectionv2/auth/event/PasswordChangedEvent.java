@@ -3,11 +3,15 @@ package com.PhishingDetectionv2.auth.event;
 import java.time.Instant;
 import java.util.UUID;
 
-public record UserRegisteredEvent(
+public record PasswordChangedEvent(
+
         UUID userId,
-        UUID organizationId,
+
         String firstName,
+
         String email,
-        String verificationToken,
-        Instant registeredAt
-) {}
+
+        Instant changedAt
+
+) {
+}

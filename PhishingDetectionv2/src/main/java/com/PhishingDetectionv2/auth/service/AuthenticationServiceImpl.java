@@ -4,8 +4,11 @@ import com.PhishingDetectionv2.auth.dto.request.*;
 import com.PhishingDetectionv2.auth.dto.response.JwtResponse;
 import com.PhishingDetectionv2.auth.dto.response.RegisterResponse;
 import com.PhishingDetectionv2.auth.entity.*;
+import com.PhishingDetectionv2.auth.event.PasswordChangedEvent;
+import com.PhishingDetectionv2.auth.event.PasswordResetRequestedEvent;
 import com.PhishingDetectionv2.auth.event.UserRegisteredEvent;
 import com.PhishingDetectionv2.auth.repository.*;
+import com.PhishingDetectionv2.auth.security.AuthenticationFacade;
 import com.PhishingDetectionv2.auth.security.CustomUserDetails;
 import com.PhishingDetectionv2.common.exception.DuplicateResourceException;
 import com.PhishingDetectionv2.common.exception.InvalidRequestException;
@@ -24,6 +27,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -47,7 +51,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final UserRoleRepository userRoleRepository;
 
-    private final VerificationTokenRepository verificationTokenRepository;
+    private final PasswordResetTokenService passwordResetTokenService;
 
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -58,6 +62,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final AuthenticationManager authenticationManager;
 
     private final JwtService jwtService;
+
+    private final AuthenticationFacade authenticationFacade;
+
+    private final VerificationTokenService verificationTokenService;
 
     private final ApplicationEventPublisher applicationEventPublisher;
 
@@ -84,7 +92,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         assignDefaultRole(user,"OWNER");
 
 
-        VerificationToken verificationToken = createVerificationToken(user);
+        VerificationToken verificationToken = verificationTokenService.createVerificationToken(user);
 
 
 
@@ -102,13 +110,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         assignDefaultRole(user,"ADMIN");
 
-        VerificationToken verificationToken = createVerificationToken(user);
+        VerificationToken verificationToken = verificationTokenService.createVerificationToken(user);
 
         publishRegistrationEvent(user,verificationToken);
 
         return buildRegisterResponse(user);
 
     }
+
+
+
     @Override
     public JwtResponse login(LoginRequest request) {
 
@@ -149,28 +160,195 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
-    public JwtResponse refreshToken(RefreshTokenRequest request) {
-        return null;
+    @Transactional
+    public JwtResponse refreshToken(String refreshToken) {
+
+        RefreshToken storedToken =
+                refreshTokenService.validateRefreshToken(refreshToken);
+
+        User user = storedToken.getUser();
+
+        RefreshToken newRefreshToken =
+                refreshTokenService.rotateRefreshToken(storedToken);
+
+        CustomUserDetails userDetails =
+                CustomUserDetails.from(user);
+
+        String accessToken =
+                jwtService.generateAccessToken(userDetails);
+
+        return JwtResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(newRefreshToken.getToken())
+                .tokenType("Bearer")
+                .expiresIn(accessTokenExpiration)
+                .user(userMapper.toResponse(user))
+                .build();
     }
 
     @Override
     public void logout(LogoutRequest request) {
+        String refreshToken  = request.getRefreshToken();
+
+        RefreshToken storedToken =
+                refreshTokenService.validateRefreshToken(refreshToken);
+
+        refreshTokenService.revokeRefreshToken(storedToken);
 
     }
 
     @Override
+    @Transactional
+    public void logoutAll() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        CustomUserDetails userDetails =
+                (CustomUserDetails) authentication.getPrincipal();
+
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found."));
+
+        refreshTokenService.revokeAllUserRefreshTokens(user);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+
+        User user = authenticationFacade.getCurrentUser();
+
+        if (!passwordEncoder.matches(
+                request.getCurrentPassword(),
+                user.getPassword())) {
+
+            throw new InvalidRequestException(
+                    "Current password is incorrect."
+            );
+        }
+
+        if (!request.getNewPassword()
+                .equals(request.getConfirmPassword())) {
+
+            throw new InvalidRequestException(
+                    "Passwords do not match."
+            );
+        }
+
+        if (passwordEncoder.matches(
+                request.getNewPassword(),
+                user.getPassword())) {
+
+            throw new InvalidRequestException(
+                    "New password must be different from current password."
+            );
+        }
+
+        user.setPassword(
+                passwordEncoder.encode(
+                        request.getNewPassword()
+                )
+        );
+
+        userRepository.save(user);
+
+        refreshTokenService.revokeAllUserRefreshTokens(user);
+    }
+
+    @Override
+    @Transactional
     public void verifyEmail(String token) {
 
+        VerificationToken verificationToken =
+                verificationTokenService.validateVerificationToken(token);
+
+        User user = verificationToken.getUser();
+
+        if (user.isEnabled()) {
+            throw new InvalidRequestException(
+                    "Email is already verified."
+            );
+        }
+
+        user.setEnabled(true);
+
+        userRepository.save(user);
+
+        verificationTokenService.deleteVerificationToken(
+                verificationToken
+        );
     }
 
     @Override
+    @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
 
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found."));
+
+        PasswordResetToken token =
+                passwordResetTokenService.createPasswordResetToken(user);
+
+        applicationEventPublisher.publishEvent(
+                new PasswordResetRequestedEvent(
+                        user.getId(),
+                        user.getEmail(),
+                        user.getFirstName(),
+                        token.getToken(),
+                        Instant.now()
+                )
+        );
     }
 
     @Override
+    @Transactional
     public void resetPassword(ResetPasswordRequest request) {
 
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new InvalidRequestException(
+                    "New password and confirm password do not match."
+            );
+        }
+
+        PasswordResetToken resetToken =
+                passwordResetTokenService.validatePasswordResetToken(
+                        request.getToken()
+                );
+
+        User user = resetToken.getUser();
+
+        if (passwordEncoder.matches(
+                request.getNewPassword(),
+                user.getPassword()
+        )) {
+            throw new InvalidRequestException(
+                    "New password must be different from the current password."
+            );
+        }
+
+        user.setPassword(
+                passwordEncoder.encode(request.getNewPassword())
+        );
+
+        userRepository.save(user);
+
+        passwordResetTokenService.markTokenAsUsed(resetToken);
+
+        refreshTokenService.revokeAllUserRefreshTokens(user);
+
+        applicationEventPublisher.publishEvent(
+                new PasswordChangedEvent(
+                        user.getId(),
+                        user.getFirstName(),
+                        user.getEmail(),
+                        Instant.now()
+                )
+        );
     }
 //    @Override
 //    @Transactional
@@ -261,7 +439,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (!user.isEnabled()) {
 
             throw new UnauthorizedException(
-                    "Account is disabled."
+                    "Account is disabled. Please verify before login"
             );
 
         }
@@ -391,17 +569,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         userRoleRepository.save(userRole);
     }
 
-    private  VerificationToken createVerificationToken(User user){
-        VerificationToken verificationToken = VerificationToken.builder()
-                .token(UUID.randomUUID().toString())
-                .user(user)
-                .expiresAt(Instant.now().plus(24, ChronoUnit.HOURS))
-                .used(false)
-                .build();
 
-
-        return verificationTokenRepository.save(verificationToken);
-    }
     private void publishRegistrationEvent(
             User user,
             VerificationToken verificationToken
@@ -414,6 +582,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                         user.getId(),
 
                         user.getOrganization().getId(),
+
+                        user.getFirstName(),
 
                         user.getEmail(),
 
