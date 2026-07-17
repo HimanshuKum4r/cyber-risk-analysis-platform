@@ -15,8 +15,8 @@ spring:
             enable: true
   datasource:
     url: jdbc:mysql://localhost:3306/phishing_detection?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: root
-    password: YourNewPassword
+    username: ${root}
+    password: ${YourNewPassword}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:

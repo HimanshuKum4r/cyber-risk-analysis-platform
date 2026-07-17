@@ -10,7 +10,7 @@ spring:
       open-in-view: false
 
 jwt:
-  secret: VGhpc0lzQVN1cGVyU2VjcmV0S2V5Rm9ySldUVGhhdElzQXRMZWFzdDMyQ2hhcmFjdGVyc0xvbmc=
+  secret: ${Secret-KEY}
   access-token-expiration: 900000
   refresh-token-expiration: 604800000
   password-reset-token-expiration: 900000
